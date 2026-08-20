@@ -25,8 +25,12 @@ Most weekend versions of this project score well on a test set and then guess "h
 You need Python installed, nothing else.
 
 ```bash
+git clone https://github.com/ShubhamPandeycreate/Half-a-Doodle.git
+cd Half-a-Doodle
 python -m http.server 8000
 ```
+
+If `python` is not found, try `python3` instead. The important part is running this command from inside the project folder, since it serves whatever directory you are standing in when you run it.
 
 Then open `http://localhost:8000/index.html` in a browser. The page will load the model, run a quick self check comparing its rasterizer against the reference in `parity.json`, and then let you draw. Open the browser console if you want to see the self check result.
 
