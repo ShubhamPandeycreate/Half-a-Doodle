@@ -2,6 +2,8 @@
 
 Draw something in the browser and a small neural network guesses what it is, updating live as you draw. It runs entirely client side. There is no server doing the thinking, just a static HTML page and a tiny ONNX model.
 
+![demo of drawing a doodle and getting live guesses](assets/demo.gif)
+
 Try it: open `index.html` after starting a local server (see below). It will not work if you just double click the file, because the browser blocks the model file from loading over `file://`.
 
 ## Why this is harder than it sounds
