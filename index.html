@@ -4,27 +4,125 @@
 <meta charset="utf-8">
 <title>Doodle guesser</title>
 <style>
-  body { font-family: system-ui, sans-serif; margin: 2rem; color: #222; }
-  h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 1rem; }
-  #wrap { display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; }
-  #side { min-width: 240px; }  #status { font-size: .8rem; color: #777; margin-top: .75rem; }
-  canvas { border: 2px solid #ccc; border-radius: 8px; touch-action: none; cursor: crosshair; background: #fff; }
-  canvas.busy { cursor: wait; opacity: .6; }  .row { margin-bottom: .6rem; }
-  .lab { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: .2rem; }
-  .bar { height: 10px; background: #eee; border-radius: 5px; overflow: hidden; }
-  .fill { height: 100%; background: #3b82f6; width: 0; transition: width .12s; }
-  .row:first-child .fill { background: #2563eb; }
-  button { margin-top: .5rem; padding: .45rem 1rem; font-size: .9rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; }
-  button:hover { background: #f5f5f5; }
+  /* Scrappy school-project look: clipboard, ruled paper, tape and pins.
+     Nothing that wraps the canvas is ever rotated -- pointerdown maps the cursor
+     through pad.getBoundingClientRect(), and a rotated ancestor would return the
+     axis-aligned box of a tilted element and skew every stroke. Decoration only
+     tilts things the canvas does not live inside. */
+  :root {
+    --ink: #2a3f5f; --paper: #fffdf4; --rule: #cfe0ee;
+    --margin: #e0908c; --pencil: #857f70;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2.5rem 1rem; display: flex; justify-content: center;
+    color: var(--ink);
+    font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Segoe UI", cursive;
+    background-color: #56442f;
+    background-image: repeating-linear-gradient(91deg, rgba(0,0,0,.12) 0 2px, transparent 2px 52px),
+                      linear-gradient(160deg, #6d5740, #43351f);
+  }
+  .clipboard {
+    position: relative; width: 100%; max-width: 880px;
+    padding: 34px 22px 24px; border-radius: 12px;
+    background: linear-gradient(#c99b64, #ad7f4a);
+    box-shadow: 0 20px 38px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.14);
+  }
+  .clip {
+    position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+    width: 126px; height: 34px; border-radius: 7px;
+    background: linear-gradient(#f4f4f4, #9d9d9d 46%, #dcdcdc 54%, #767676);
+    box-shadow: 0 4px 7px rgba(0,0,0,.45);
+  }
+  .clip::after {
+    content: ""; position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%);
+    width: 64px; height: 15px; border-radius: 0 0 9px 9px;
+    background: linear-gradient(#bdbdbd, #8a8a8a);
+  }
+  .paper {
+    position: relative; min-height: 540px; padding: 30px 30px 32px 58px;
+    background-color: var(--paper);
+    background-image: linear-gradient(var(--rule) 1px, transparent 1px);
+    background-size: 100% 30px; background-position: 0 64px;
+    box-shadow: 0 6px 16px rgba(0,0,0,.32);
+  }
+  .paper::before {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 42px;
+    border-left: 2px solid var(--margin); opacity: .75;
+  }
+  .pin {
+    position: absolute; top: 12px; width: 19px; height: 19px; border-radius: 50%;
+    pointer-events: none; z-index: 3; box-shadow: 0 3px 6px rgba(0,0,0,.45);
+    background: radial-gradient(circle at 33% 30%, #ff9a8f, #c62828 62%, #7f1d1a);
+  }
+  .pin::after {
+    content: ""; position: absolute; top: 4px; right: 5px;
+    width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.75);
+  }
+  .pin-a { left: 18px; }
+  .pin-b { right: 18px; background: radial-gradient(circle at 33% 30%, #9fd0f7, #1565c0 62%, #0c3a72); }
+  h1 {
+    margin: 0 0 2px; font-size: 1.55rem; font-weight: 400;
+    transform: rotate(-1.1deg); transform-origin: left center;
+  }
+  h1 em {
+    display: block; margin-top: 2px; font-style: normal;
+    font-size: .78rem; color: var(--pencil); transform: rotate(.5deg);
+  }
+  #wrap { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; margin-top: 26px; }
+  .tapewrap { position: relative; }
+  canvas {
+    display: block; background: #fff; border: 1px solid #ded9c7;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2); touch-action: none; cursor: crosshair;
+  }
+  canvas.busy { cursor: wait; opacity: .5; }
+  .tape {
+    position: absolute; width: 88px; height: 27px; z-index: 2; pointer-events: none;
+    background: rgba(255,240,170,.72); box-shadow: 0 1px 3px rgba(0,0,0,.16);
+  }
+  .tape-tl { top: -13px; left: -18px; transform: rotate(-25deg); }
+  .tape-br { bottom: -13px; right: -18px; transform: rotate(-25deg); }
+  #side { min-width: 250px; flex: 1; }
+  .heading { margin: 0 0 14px; font-size: 1.1rem; text-decoration: underline wavy var(--margin); }
+  .row { margin-bottom: 15px; }
+  .lab { display: flex; justify-content: space-between; font-size: 1rem; margin-bottom: 5px; }
+  .bar { height: 15px; border: 1.5px solid var(--ink); border-radius: 9px; overflow: hidden;
+         background: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 4px, transparent 4px 8px); }
+  .fill { height: 100%; width: 0; transition: width .12s; background: linear-gradient(#fff0a8, #ffd95e); }
+  .row:first-child .fill { background: linear-gradient(#b5f5ce, #5fe39b); }
+  /* empty state, CSS-only so the JS stays untouched */
+  #guesses:empty::before { content: "\2026 nothing yet, start drawing"; color: var(--pencil); font-size: .92rem; }
+  button {
+    margin-top: 8px; font: inherit; font-size: .95rem; padding: 7px 18px; cursor: pointer;
+    color: var(--ink); background: #fff7d4; border: 2px solid var(--ink);
+    border-radius: 13px 6px 15px 5px; transform: rotate(-1.2deg);
+    box-shadow: 2px 2px 0 rgba(0,0,0,.2);
+  }
+  button:hover { background: #ffefaa; }
+  button:active { transform: rotate(-1.2deg) translate(2px, 2px); box-shadow: 0 0 0 rgba(0,0,0,.2); }
+  #status { margin: 14px 0 0; font-size: .8rem; font-style: italic; color: var(--pencil); }
 </style>
 </head>
 <body>
-<h1>Draw something &mdash; it guesses as you go</h1>
-<div id="wrap">
-  <canvas id="pad" width="400" height="400" class="busy"></canvas>
-  <div id="side">
-    <div id="guesses"></div><button id="clear">Clear</button>
-    <p id="status">loading model&hellip;</p>
+<div class="clipboard">
+  <div class="clip"></div>
+  <div class="paper">
+    <span class="pin pin-a"></span>
+    <span class="pin pin-b"></span>
+    <h1>Doodle Guesser<em>it guesses while you draw &mdash; 20 things, 28&times;28 pixels</em></h1>
+    <div id="wrap">
+      <div class="tapewrap">
+        <span class="tape tape-tl"></span>
+        <span class="tape tape-br"></span>
+        <canvas id="pad" width="400" height="400" class="busy"></canvas>
+      </div>
+      <div id="side">
+        <p class="heading">My guesses:</p>
+        <div id="guesses"></div>
+        <button id="clear">Clear</button>
+        <p id="status">loading model&hellip;</p>
+      </div>
+    </div>
   </div>
 </div>
 
