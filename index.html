@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Doodle guesser</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; color: #222; }
+  h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 1rem; }
+  #wrap { display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; }
+  #side { min-width: 240px; }  #status { font-size: .8rem; color: #777; margin-top: .75rem; }
+  canvas { border: 2px solid #ccc; border-radius: 8px; touch-action: none; cursor: crosshair; background: #fff; }
+  canvas.busy { cursor: wait; opacity: .6; }  .row { margin-bottom: .6rem; }
+  .lab { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: .2rem; }
+  .bar { height: 10px; background: #eee; border-radius: 5px; overflow: hidden; }
+  .fill { height: 100%; background: #3b82f6; width: 0; transition: width .12s; }
+  .row:first-child .fill { background: #2563eb; }
+  button { margin-top: .5rem; padding: .45rem 1rem; font-size: .9rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; }
+  button:hover { background: #f5f5f5; }
+</style>
+</head>
+<body>
+<h1>Draw something &mdash; it guesses as you go</h1>
+<div id="wrap">
+  <canvas id="pad" width="400" height="400" class="busy"></canvas>
+  <div id="side">
+    <div id="guesses"></div><button id="clear">Clear</button>
+    <p id="status">loading model&hellip;</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+<script>
+const CLASSES = ["airplane", "apple", "banana", "bicycle", "book", "butterfly", "cat", "chair", "clock", "cloud", "cup", "eye", "fish", "flower", "guitar", "house", "key", "moon", "star", "tree"];
+const PARITY = {"label":"cat","full":{"strokes":[[[52,46,35,30,29,36,57,65,70,55],[49,48,58,68,82,94,94,88,79,48]],[[58,59,76,65],[48,44,35,61]],[[45,43],[62,62]],[[35,41,54],[77,79,72]],[[38,48],[70,67]],[[39,52],[74,71]],[[64,74,150,156,158,145,116,78,52,38,42],[90,86,99,105,115,129,134,130,112,98,98]],[[46,54,57],[111,123,162]],[[110,108],[130,164]],[[154,159,166,178,192,213,231,248,255,252,249,225,212],[107,101,76,61,56,55,61,77,95,109,111,109,86]],[[0,8,7,21,26,36,42],[23,43,19,34,14,30,34]],[[53,57,66,61,51,49,58,72],[24,25,16,11,13,22,31,33]],[[85,79,82,89,95,100,102,99,90],[13,14,23,29,27,22,14,10,10]],[[120,114,125,132,137,142,150,157,159,158,151],[12,12,25,22,14,20,22,18,13,6,0]],[[63,58,48,38],[161,163,160,160]],[[100,100],[169,169]],[[108,88],[162,161]]],"pixels":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,20,20,0,0,0,0,124,16,0,0,0,0,0,0,0,0,0,0,0,0,28,0,120,4,92,139,84,124,64,139,56,124,80,88,104,44,0,0,0,0,0,0,0,0,0,0,0,16,207,124,139,112,68,179,12,68,131,100,0,84,80,56,56,0,0,0,0,0,0,0,0,0,0,0,0,0,171,40,36,60,28,60,215,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,40,0,0,12,104,151,128,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,147,44,120,116,0,0,0,0,0,0,0,0,0,44,120,104,96,112,112,12,0,0,0,0,0,0,0,72,124,175,56,96,0,0,0,0,0,0,0,0,24,124,0,0,0,0,12,135,16,0,0,0,0,0,0,96,139,128,16,128,0,0,0,0,0,0,0,0,116,4,0,0,0,0,0,12,128,0,0,0,0,0,0,36,124,64,104,151,108,112,104,104,56,16,0,0,116,0,0,0,16,104,0,0,96,24,0,0,0,0,0,0,104,96,24,0,0,0,0,8,48,88,112,139,64,0,0,0,0,116,16,0,60,48,0,0,0,0,0,0,0,175,64,0,0,0,0,0,0,0,0,116,16,0,0,0,0,16,116,104,124,4,0,0,0,0,0,0,0,68,139,120,8,0,0,0,0,0,12,135,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,96,20,112,104,100,151,104,108,108,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,104,0,0,0,0,100,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,104,0,0,0,0,96,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,48,104,131,12,0,84,108,80,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,24,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"partial":{"strokes":[[[52,46,35,30,29,36,57,65,70,55],[49,48,58,68,82,94,94,88,79,48]],[[58,59,76,65],[48,44,35,61]],[[45,43],[62,62]],[[35,41,54],[77,79,72]],[[38,48],[70,67]],[[39,52],[74,71]],[[64,74,150,156,158,145],[90,86,99,105,115,129]]],"pixels":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,64,167,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,44,135,72,116,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,24,108,68,124,0,88,32,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,24,135,8,24,116,0,124,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,24,131,4,0,0,112,64,76,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,120,8,48,24,0,16,147,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,112,52,116,88,16,0,116,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,96,24,116,207,131,0,24,104,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32,72,112,124,36,0,0,0,131,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,124,0,0,0,0,0,36,112,92,56,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,88,44,0,0,0,44,159,104,24,48,92,108,104,108,96,52,8,0,0,0,0,0,0,0,0,0,0,0,0,104,96,96,96,88,0,0,0,0,0,0,0,0,12,52,104,104,108,108,84,44,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,20,64,124,60,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,124,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,76,36,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,116,28,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,100,56,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,80,60,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"dot":{"strokes":[[[10],[10]]],"pixels":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}};
+
+// Hand port of rasterize() in data.py -- the two must stay identical. Rounding is
+// floor(v + 0.5) everywhere (Python's round() is banker's, JS's is half-up) and the
+// downsample is integer (sum + 32) / 64, so both agree byte for byte.
+const CANVAS = 224, TARGET = 192, OUT = 28, BLOCK = 8;
+
+function stamp(img, cx, cy, half, lw) {
+  for (let dy = 0; dy < lw; dy++) {
+    const yy = cy - half + dy;
+    if (yy < 0 || yy >= CANVAS) continue;
+    for (let dx = 0; dx < lw; dx++) {
+      const xx = cx - half + dx;
+      if (xx >= 0 && xx < CANVAS) img[yy * CANVAS + xx] = 255;
+    }
+  }
+}
+
+function rasterize(strokes, lineWidth) {
+  lineWidth = lineWidth || 3;
+  const out = new Uint8Array(OUT * OUT);
+  let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity, n = 0;
+  for (const s of strokes) {
+    for (let i = 0; i < s[0].length; i++) {
+      n++;
+      if (s[0][i] < minx) minx = s[0][i];
+      if (s[0][i] > maxx) maxx = s[0][i];
+      if (s[1][i] < miny) miny = s[1][i];
+      if (s[1][i] > maxy) maxy = s[1][i];
+    }
+  }
+  if (n === 0) return out;
+  const w = maxx - minx, h = maxy - miny;
+  const scale = (w < 1 && h < 1) ? 1.0 : TARGET / Math.max(w, h);
+  const ox = (CANVAS - w * scale) / 2.0 - minx * scale;
+  const oy = (CANVAS - h * scale) / 2.0 - miny * scale;
+  const img = new Uint8Array(CANVAS * CANVAS);
+  const half = Math.floor(lineWidth / 2);
+  for (const s of strokes) {
+    const m = s[0].length;
+    if (m === 0) continue;
+    const xs = new Float64Array(m), ys = new Float64Array(m);
+    for (let i = 0; i < m; i++) { xs[i] = s[0][i] * scale + ox; ys[i] = s[1][i] * scale + oy; }
+    if (m === 1) { stamp(img, Math.floor(xs[0] + 0.5), Math.floor(ys[0] + 0.5), half, lineWidth); continue; }
+    for (let i = 0; i < m - 1; i++) {
+      const x0 = xs[i], y0 = ys[i];
+      const dx = xs[i + 1] - x0, dy = ys[i + 1] - y0;
+      let steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)));
+      if (steps < 1) steps = 1;
+      for (let k = 0; k <= steps; k++) {
+        const t = k / steps;
+        stamp(img, Math.floor(x0 + dx * t + 0.5), Math.floor(y0 + dy * t + 0.5), half, lineWidth);
+      }
+    }
+  }
+  for (let by = 0; by < OUT; by++) {
+    for (let bx = 0; bx < OUT; bx++) {
+      let sum = 0;
+      for (let y = 0; y < BLOCK; y++) {
+        const row = (by * BLOCK + y) * CANVAS + bx * BLOCK;
+        for (let x = 0; x < BLOCK; x++) sum += img[row + x];
+      }
+      out[by * OUT + bx] = Math.floor((sum + 32) / 64);
+    }
+  }
+  return out;
+}
+// The JS port must reproduce Python's bytes exactly.
+function parityCheck() {
+  let allOk = true;
+  for (const name of ["full", "partial", "dot"]) {
+    const got = rasterize(PARITY[name].strokes), exp = PARITY[name].pixels;
+    let diff = got.length === exp.length ? 0 : 999;
+    for (let i = 0; i < got.length; i++) if (got[i] !== exp[i]) diff++;
+    console.log("parity[" + name + "]: " + (diff === 0 ? "MATCH" : "MISMATCH (" + diff + " px)"));
+    allOk = allOk && diff === 0;
+  }
+  console.log(allOk ? "PARITY OK - JS rasterizer is byte-identical to Python" : "PARITY FAILED - fix the port");
+  window.__parity = allOk;
+  return allOk;
+}
+
+// --------------------------------- demo ------------------------------------
+const pad = document.getElementById("pad"), ctx = pad.getContext("2d");
+const guesses = document.getElementById("guesses"), status = document.getElementById("status");
+let strokes = [], drawing = false, session = null, lastInfer = 0;
+ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#111";
+const pos = e => { const r = pad.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+pad.addEventListener("pointerdown", e => {
+  if (!session) return;
+  const [x, y] = pos(e);
+  strokes.push([[x], [y]]);
+  drawing = true;
+  pad.setPointerCapture(e.pointerId);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y); ctx.stroke();
+});
+
+pad.addEventListener("pointermove", e => {
+  if (!drawing) return;
+  const [x, y] = pos(e), s = strokes[strokes.length - 1];
+  ctx.beginPath();
+  ctx.moveTo(s[0][s[0].length - 1], s[1][s[1].length - 1]);
+  ctx.lineTo(x, y); ctx.stroke();
+  s[0].push(x); s[1].push(y);
+  const now = performance.now();
+  if (now - lastInfer > 200) { lastInfer = now; infer(); }   // not on every move
+});
+pad.addEventListener("pointerup", () => { if (drawing) { drawing = false; infer(); } });
+document.getElementById("clear").addEventListener("click", () => {
+  strokes = []; drawing = false;
+  ctx.clearRect(0, 0, pad.width, pad.height);
+  render([]);
+});
+function render(top) {
+  guesses.innerHTML = top.map(t => {
+    const pct = (t[1] * 100).toFixed(1);
+    return '<div class="row"><div class="lab"><span>' + t[0] + '</span><span>' + pct +
+           '%</span></div><div class="bar"><div class="fill" style="width:' + pct + '%"></div></div></div>';
+  }).join("");
+}
+
+// ORT Web allows only one run() at a time ("Session already started"), so keep a single
+// inference in flight and re-run once afterwards if the drawing moved on.
+let busy = false, pending = false;
+async function infer() {
+  if (!session || strokes.length === 0) { render([]); return; }
+  if (busy) { pending = true; return; }
+  busy = true;
+  try {
+    const px = rasterize(strokes);
+    const data = new Float32Array(OUT * OUT);
+    for (let i = 0; i < data.length; i++) data[i] = px[i];   // raw 0-255; /255 is inside the model
+    const res = await session.run({ x: new ort.Tensor("float32", data, [1, 1, OUT, OUT]) });
+    const logits = res.linear.data;
+    let mx = -Infinity;
+    for (let i = 0; i < logits.length; i++) if (logits[i] > mx) mx = logits[i];
+    let sum = 0; const p = [];
+    for (let i = 0; i < logits.length; i++) { p[i] = Math.exp(logits[i] - mx); sum += p[i]; }
+    for (let i = 0; i < p.length; i++) p[i] /= sum;
+    const order = p.map((v, i) => i).sort((a, b) => p[b] - p[a]).slice(0, 3);
+    render(order.map(i => [CLASSES[i], p[i]]));
+  } catch (err) {
+    console.error(err);
+  } finally {
+    busy = false;
+    if (pending) { pending = false; infer(); }
+  }
+}
+
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
+(async () => {
+  parityCheck();
+  try {
+    session = await ort.InferenceSession.create("model.onnx");
+    pad.classList.remove("busy");
+    status.textContent = "ready - draw with the mouse";
+  } catch (err) {
+    status.textContent = "failed to load model.onnx: " + err;
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
