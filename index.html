@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <title>Half a Doodle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Kalam:wght@400;700&family=Patrick+Hand&display=swap" rel="stylesheet">
 <style>
   /* Scrappy school-project look: clipboard, ruled paper, tape and pins.
      Nothing that wraps the canvas is ever rotated -- pointerdown maps the cursor
@@ -10,21 +13,22 @@
      axis-aligned box of a tilted element and skew every stroke. Decoration only
      tilts things the canvas does not live inside. */
   :root {
-    --ink: #2a3f5f; --paper: #fffdf4; --rule: #cfe0ee;
-    --margin: #e0908c; --pencil: #857f70;
+    --ink: #202b38; --paper: #fefcf5; --rule: #d6e5f3;
+    --margin: #e8827e; --pencil: #636c7a; --stamp: #c62828;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 2.5rem 1rem; display: flex; justify-content: center;
     color: var(--ink);
-    font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Segoe UI", cursive;
+    font-family: 'Patrick Hand', "Segoe Print", "Bradley Hand", cursive, sans-serif;
+    font-size: 1.05rem;
     background-color: #56442f;
     background-image: repeating-linear-gradient(91deg, rgba(0,0,0,.12) 0 2px, transparent 2px 52px),
                       linear-gradient(160deg, #6d5740, #43351f);
   }
   .clipboard {
-    position: relative; width: 100%; max-width: 880px;
-    padding: 34px 22px 24px; border-radius: 12px;
+    position: relative; width: 100%; max-width: 900px;
+    padding: 34px 22px 24px; border-radius: 14px;
     background: linear-gradient(#c99b64, #ad7f4a);
     box-shadow: 0 20px 38px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.14);
   }
@@ -34,6 +38,7 @@
     background: linear-gradient(165deg, #57514a 0%, #2a2622 52%, #3e3833 100%);
     box-shadow: 0 4px 7px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,238,210,.35),
                 inset 0 -7px 10px rgba(0,0,0,.4);
+    z-index: 4;
   }
   .clip::after {
     content: ""; position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%);
@@ -41,16 +46,27 @@
     background: linear-gradient(165deg, #3e3833, #201d1a);
   }
   .paper {
-    position: relative; min-height: 540px; padding: 30px 30px 32px 58px;
+    position: relative; min-height: 560px; padding: 32px 32px 34px 62px;
     background-color: var(--paper);
     background-image: linear-gradient(var(--rule) 1px, transparent 1px);
-    background-size: 100% 30px; background-position: 0 64px;
-    box-shadow: 0 6px 16px rgba(0,0,0,.32);
+    background-size: 100% 28px; background-position: 0 66px;
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.32);
   }
   .paper::before {
-    content: ""; position: absolute; top: 0; bottom: 0; left: 42px;
-    border-left: 2px solid var(--margin); opacity: .75;
+    content: ""; position: absolute; top: 0; bottom: 0; left: 46px;
+    border-left: 2px solid var(--margin); opacity: .8;
   }
+  /* Notebook binder punch holes on left margin */
+  .hole {
+    position: absolute; left: 16px; width: 15px; height: 15px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #805930, #4e3519);
+    box-shadow: inset 0 1.5px 3px rgba(0,0,0,0.65), 0 1px 0 rgba(255,255,255,0.7);
+    pointer-events: none; z-index: 2;
+  }
+  .hole-1 { top: 70px; }
+  .hole-2 { top: 50%; transform: translateY(-50%); }
+  .hole-3 { bottom: 70px; }
   .pin {
     position: absolute; top: 12px; width: 19px; height: 19px; border-radius: 50%;
     pointer-events: none; z-index: 3; box-shadow: 0 3px 6px rgba(0,0,0,.45);
@@ -60,94 +76,195 @@
     content: ""; position: absolute; top: 4px; right: 5px;
     width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.75);
   }
-  .pin-a { left: 18px; }
-  .pin-b { right: 18px; background: radial-gradient(circle at 33% 30%, #9fd0f7, #1565c0 62%, #0c3a72); }
+  .pin-a { left: 24px; }
+  .pin-b { right: 24px; background: radial-gradient(circle at 33% 30%, #9fd0f7, #1565c0 62%, #0c3a72); }
+  /* Science fair / teacher red stamp */
+  .stamp {
+    position: absolute; top: 16px; right: 48px;
+    border: 3px double var(--stamp); color: var(--stamp);
+    padding: 2px 10px; font-family: 'Kalam', cursive;
+    font-size: 1.15rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; border-radius: 8px 14px 6px 12px;
+    transform: rotate(8deg); opacity: 0.85; pointer-events: none; user-select: none;
+    box-shadow: 0 0 0 1px rgba(198,40,40,0.12);
+  }
   h1 {
-    margin: 0 0 2px; font-size: 1.55rem; font-weight: 400;
-    transform: rotate(-1.1deg); transform-origin: left center;
+    font-family: 'Kalam', cursive;
+    margin: 0 0 2px; font-size: 1.95rem; font-weight: 700;
+    transform: rotate(-1deg); transform-origin: left center;
   }
   h1 em {
     display: block; margin-top: 2px; font-style: normal;
-    font-size: .78rem; color: var(--pencil); transform: rotate(.5deg);
+    font-family: 'Patrick Hand', cursive;
+    font-size: 0.98rem; color: var(--pencil); transform: rotate(.4deg);
   }
-  #wrap { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; margin-top: 26px; }
+  #wrap { display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; margin-top: 24px; }
   .tapewrap { position: relative; }
   canvas {
-    display: block; background: #fff; border: 1px solid #ded9c7;
-    box-shadow: 0 4px 12px rgba(0,0,0,.2); touch-action: none; cursor: crosshair;
+    display: block; background: #fdfbf7;
+    border: 2.5px solid var(--ink);
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    box-shadow: 2px 4px 14px rgba(0,0,0,.18); touch-action: none; cursor: crosshair;
   }
   canvas.busy { cursor: wait; opacity: .5; }
   .tape {
-    position: absolute; width: 88px; height: 27px; z-index: 2; pointer-events: none;
-    background: rgba(255,240,170,.72); box-shadow: 0 1px 3px rgba(0,0,0,.16);
+    position: absolute; width: 94px; height: 28px; z-index: 2; pointer-events: none;
+    background: rgba(255,243,170,.82); box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    clip-path: polygon(
+      0% 0%, 94% 0%, 100% 15%, 95% 32%, 100% 50%, 96% 68%, 100% 84%, 94% 100%,
+      0% 100%, 5% 82%, 0% 65%, 4% 48%, 0% 30%, 5% 14%
+    );
+    backdrop-filter: blur(0.5px);
   }
-  .tape-tl { top: -13px; left: -18px; transform: rotate(-25deg); }
-  .tape-br { bottom: -13px; right: -18px; transform: rotate(-25deg); }
-  #side { min-width: 250px; flex: 1; }
-  .heading { margin: 0 0 14px; font-size: 1.1rem; text-decoration: underline wavy var(--margin); }
-  .row { margin-bottom: 15px; }
-  .lab { display: flex; justify-content: space-between; font-size: 1rem; margin-bottom: 5px; }
-  .bar { height: 15px; border: 1.5px solid var(--ink); border-radius: 9px; overflow: hidden;
-         background: repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 4px, transparent 4px 8px); }
-  .fill { height: 100%; width: 0; transition: width .12s; background: linear-gradient(#fff0a8, #ffd95e); }
-  .row:first-child .fill { background: linear-gradient(#b5f5ce, #5fe39b); }
+  .tape-tl { top: -14px; left: -18px; transform: rotate(-24deg); }
+  .tape-br { bottom: -14px; right: -18px; transform: rotate(-24deg); }
+  #side { min-width: 260px; flex: 1; }
+  .heading {
+    margin: 0 0 12px; font-family: 'Kalam', cursive;
+    font-size: 1.35rem; font-weight: 700;
+    text-decoration: underline wavy var(--margin);
+  }
+  .row { margin-bottom: 12px; }
+  .lab {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: 'Caveat', cursive; font-size: 1.45rem; font-weight: 700;
+    margin-bottom: 2px; line-height: 1.1;
+  }
+  .lab .rank {
+    display: inline-block; font-size: 1rem; color: var(--pencil);
+    margin-right: 4px; font-family: 'Patrick Hand', cursive;
+  }
+  .bar {
+    height: 16px; position: relative; border-radius: 4px;
+    background: rgba(0,0,0,.03); overflow: hidden;
+  }
+  .fill {
+    height: 100%; width: 0; transition: width .15s cubic-bezier(0.2, 0.8, 0.25, 1);
+    background: rgba(255, 222, 89, 0.78);
+    border-radius: 2px 6px 3px 5px;
+    transform: skewX(-4deg);
+    mix-blend-mode: multiply;
+  }
+  .row:first-child .fill { background: rgba(105, 235, 155, 0.82); }
   /* empty state, CSS-only so the JS stays untouched */
-  #guesses:empty::before { content: "\2026 nothing yet, start drawing"; color: var(--pencil); font-size: .92rem; }
-  button {
-    margin-top: 8px; font: inherit; font-size: .95rem; padding: 7px 18px; cursor: pointer;
-    color: var(--ink); background: #fff7d4; border: 2px solid var(--ink);
-    border-radius: 13px 6px 15px 5px; transform: rotate(-1.2deg);
-    box-shadow: 2px 2px 0 rgba(0,0,0,.2);
+  #guesses:empty::before {
+    content: "\270E doodle something to guess\2026";
+    font-family: 'Caveat', cursive;
+    color: var(--pencil); font-size: 1.35rem;
+    display: block; padding-top: 6px;
   }
-  button:active { transform: rotate(-1.2deg) translate(2px, 2px); box-shadow: 0 0 0 rgba(0,0,0,.2); }
-  #status { margin: 14px 0 0; font-size: .8rem; font-style: italic; color: var(--pencil); }
+  /* Eraser-styled Clear button */
+  #clear {
+    position: relative; margin-top: 10px;
+    font-family: 'Kalam', cursive; font-size: 1.05rem; font-weight: 700;
+    padding: 7px 24px; cursor: pointer;
+    color: #45161c; background: #ff9da7;
+    border: 2.5px solid #45161c;
+    border-radius: 4px 18px 4px 18px / 18px 4px 18px 4px;
+    transform: rotate(-2deg);
+    box-shadow: 3px 3px 0 #45161c;
+    transition: transform 0.1s, box-shadow 0.1s, background 0.15s;
+  }
+  #clear:hover {
+    transform: rotate(0deg) scale(1.04);
+    background: #ffadb6;
+  }
+  #clear:active {
+    transform: rotate(-2deg) translate(2px, 2px);
+    box-shadow: 1px 1px 0 #45161c;
+  }
+  #status {
+    margin: 14px 0 0; font-family: 'Patrick Hand', cursive;
+    font-size: 0.95rem; font-style: italic; color: var(--pencil);
+  }
   /* --- live captioner: a sticky note the vision model talks through --- */
   .note {
-    position: relative; margin-top: 26px; padding: 22px 15px 14px;
+    position: relative; margin-top: 24px; padding: 22px 16px 14px;
     background: linear-gradient(158deg, #fffbb8, #ffe873);
-    box-shadow: 0 5px 13px rgba(0,0,0,.3); transform: rotate(1.3deg);
+    border: 1px solid rgba(0,0,0,.06);
+    border-radius: 2px 3px 18px 2px / 2px 18px 3px 2px;
+    box-shadow: 2px 6px 15px rgba(0,0,0,.22); transform: rotate(1.2deg);
   }
   .note::after {
-    content: ""; position: absolute; right: 0; bottom: 0; border: 9px solid transparent;
-    border-right-color: rgba(0,0,0,.12); border-bottom-color: rgba(0,0,0,.12);
+    content: ""; position: absolute; right: 0; bottom: 0; border: 10px solid transparent;
+    border-right-color: rgba(0,0,0,.15); border-bottom-color: rgba(0,0,0,.15);
   }
-  .tape-note { top: -12px; left: 50%; margin-left: -44px; transform: rotate(1.8deg); }
+  .tape-note {
+    top: -13px; left: 50%; margin-left: -44px; transform: rotate(1.8deg);
+  }
   .notehead {
-    margin: 0 0 8px; font-size: .8rem; color: #8d7a35;
+    margin: 0 0 8px; font-family: 'Patrick Hand', cursive;
+    font-size: 0.9rem; color: #786624;
     display: flex; justify-content: space-between; align-items: center; gap: 8px;
   }
   /* hand-drawn looking on/off switch */
   .sw { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
   .sw input {
     appearance: none; -webkit-appearance: none; margin: 0; position: relative;
-    width: 34px; height: 17px; border: 2px solid var(--ink); border-radius: 10px;
+    width: 34px; height: 18px; border: 2px solid var(--ink); border-radius: 10px;
     background: #fff7d4; cursor: pointer; transition: background .15s;
   }
   .sw input::after {
-    content: ""; position: absolute; top: 1px; left: 1px; width: 11px; height: 11px;
+    content: ""; position: absolute; top: 1px; left: 1px; width: 12px; height: 12px;
     border-radius: 50%; background: var(--ink); transition: left .15s;
   }
   .sw input:checked { background: #b5f5ce; }
-  .sw input:checked::after { left: 18px; }
+  .sw input:checked::after { left: 17px; }
   .sw input:disabled { opacity: .4; cursor: not-allowed; }
   .sw input:disabled + span { opacity: .5; }
-  #caption { margin: 0; font-size: 1rem; line-height: 1.45; color: #4c3f14; min-height: 2.9em; }
-  #caption.muted { color: #93813f; font-style: italic; font-size: .88rem; }
+  #caption {
+    margin: 0; font-family: 'Caveat', cursive; font-size: 1.35rem; line-height: 1.3;
+    color: #3b300c; min-height: 2.6em;
+  }
+  #caption.muted { color: #877432; font-style: italic; font-size: 1.15rem; }
   .cur { animation: blink 1.05s steps(1) infinite; }
   @keyframes blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
   #vlm {
-    margin-top: 9px; font: inherit; font-size: .75rem; color: #6b5c25;
-    background: rgba(255,255,255,.5); border: 1px solid rgba(0,0,0,.22); border-radius: 5px;
+    margin-top: 9px; font-family: 'Patrick Hand', cursive; font-size: 0.85rem; color: #6b5c25;
+    background: rgba(255,255,255,.6); border: 1.5px solid rgba(0,0,0,.22);
+    border-radius: 4px; padding: 2px 4px;
   }
   #vlm[hidden] { display: none; }
+  /* Word Bank index card */
+  .wordbank {
+    margin-top: 26px; padding: 12px 16px 14px;
+    background: #ffffff;
+    border: 2px solid var(--ink);
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    box-shadow: 2px 4px 10px rgba(0,0,0,.08);
+    position: relative;
+  }
+  .wordbank-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin: 0 0 6px; font-family: 'Kalam', cursive; font-size: 1.05rem;
+    font-weight: 700; color: var(--ink);
+  }
+  .wordbank-head span {
+    font-family: 'Patrick Hand', cursive; font-size: 0.85rem; color: var(--pencil);
+    font-weight: normal;
+  }
+  .wordbank-tags {
+    display: flex; flex-wrap: wrap; gap: 5px 6px;
+  }
+  .wordbank-tags span {
+    display: inline-block;
+    font-family: 'Caveat', cursive; font-size: 1.15rem; font-weight: 600;
+    color: var(--ink); background: #f4f6f8;
+    padding: 0 8px; border-radius: 4px;
+    border: 1px dashed #cbd5e1;
+  }
 </style>
 </head>
 <body>
 <div class="clipboard">
   <div class="clip"></div>
   <div class="paper">
+    <div class="hole hole-1"></div>
+    <div class="hole hole-2"></div>
+    <div class="hole hole-3"></div>
     <span class="pin pin-a"></span>
     <span class="pin pin-b"></span>
+    <div class="stamp">A+ Project</div>
     <h1>Half a Doodle<em>it guesses while you draw &mdash; 20 things, 28&times;28 pixels</em></h1>
     <div id="wrap">
       <div class="tapewrap">
@@ -169,6 +286,18 @@
           <p id="caption" class="muted">looking for Ollama&hellip;</p>
           <select id="vlm" hidden></select>
         </div>
+      </div>
+    </div>
+    <div class="wordbank">
+      <div class="wordbank-head">
+        <span>Word Bank</span>
+        <span>20 things it knows</span>
+      </div>
+      <div class="wordbank-tags">
+        <span>airplane</span><span>apple</span><span>banana</span><span>bicycle</span><span>book</span>
+        <span>butterfly</span><span>cat</span><span>chair</span><span>clock</span><span>cloud</span>
+        <span>cup</span><span>eye</span><span>fish</span><span>flower</span><span>guitar</span>
+        <span>house</span><span>key</span><span>moon</span><span>star</span><span>tree</span>
       </div>
     </div>
   </div>
@@ -263,7 +392,7 @@ function parityCheck() {
 const pad = document.getElementById("pad"), ctx = pad.getContext("2d");
 const guesses = document.getElementById("guesses"), status = document.getElementById("status");
 let strokes = [], drawing = false, session = null, lastInfer = 0;
-ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#111";
+ctx.lineWidth = 4.5; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#202b38";
 const pos = e => { const r = pad.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
 pad.addEventListener("pointerdown", e => {
   if (!session) return;
@@ -292,9 +421,11 @@ document.getElementById("clear").addEventListener("click", () => {
 });
 function render(top) {
   nnTop = top;                               // the captioner reads this as a hint
-  guesses.innerHTML = top.map(t => {
+  const ranks = ["\u2460", "\u2461", "\u2462"];
+  guesses.innerHTML = top.map((t, i) => {
     const pct = (t[1] * 100).toFixed(1);
-    return '<div class="row"><div class="lab"><span>' + t[0] + '</span><span>' + pct +
+    const rank = ranks[i] || (i + 1);
+    return '<div class="row"><div class="lab"><span><span class="rank">' + rank + '</span>' + t[0] + '</span><span>' + pct +
            '%</span></div><div class="bar"><div class="fill" style="width:' + pct + '%"></div></div></div>';
   }).join("");
 }
