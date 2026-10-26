@@ -1,127 +1,217 @@
 # Half a Doodle
 
-Draw something in the browser and a small neural network guesses what it is, updating live as you draw. It runs entirely client side. There is no server doing the thinking, just a static HTML page and a tiny ONNX model.
-
-There is also an optional second opinion. If you happen to have [Ollama](https://ollama.com) running locally, a vision model watches the same canvas and narrates what it thinks you are drawing, in plain English, on a sticky note beside the guesses. It switches itself off when Ollama is not there, and the rest of the page neither knows nor cares.
+> **Draw something in the browser and a lightweight neural network guesses what it is in real-time as you draw.**  
+> It runs completely client-side in your browser using ONNX Runtime Web, meaning zero server latency, no cloud APIs, and complete privacy. It also includes an optional local vision model that narrates your sketches beside the predictions.
 
 ![demo of drawing a doodle and getting live guesses](assets/demo.gif)
 
-Try it: open `index.html` after starting a local server (see below). It will not work if you just double click the file, because the browser blocks the model file from loading over `file://`.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
+[![ONNX Runtime Web](https://img.shields.io/badge/Inference-ONNX%20Runtime%20Web-brightgreen.svg)](https://onnxruntime.ai/)
+[![Ollama Compatible](https://img.shields.io/badge/VLM-Ollama%20Vision-orange.svg)](https://ollama.com)
 
-## Why this is harder than it sounds
+---
 
-Most weekend versions of this project score well on a test set and then guess "hurricane" at everything the moment you actually draw something live. That happens for three reasons, and this project is built around avoiding all three:
+## Features
 
-1. **The model has to see unfinished drawings during training.** If you only ever train on complete sketches, a half finished doodle looks like nothing the model has seen before.
-2. **The rasterizer (the thing that turns your pen strokes into a 28x28 image the model can read) has to behave identically in Python, where the model is trained, and in JavaScript, where the browser runs it.** Any difference in how thick the lines are, how they get scaled, or how the pixels get rounded creates a mismatch between training and real use.
-3. **A partial drawing gets normalized to its own bounding box, not the box of a finished drawing.** In the browser you can only ever measure the box of what has been drawn so far, so training has to work the same way.
+- **Zero-Latency Client-Side Inference**: Runs a custom 20-class convolutional neural network directly inside your web browser through [ONNX Runtime Web](https://onnxruntime.ai/). No drawing data ever leaves your computer.
+- **Handmade School-Project Interface**: Designed to resemble a classroom ruled notebook page pinned to a wooden clipboard, complete with binder holes, masking tape, and highlighter-style prediction meters.
+- **Prefix Recognition for Partial Drawings**: Trained intentionally on unfinished sketches. The classifier begins identifying subjects accurately when a drawing is only 30% complete.
+- **Optional Live Narration via Ollama**: Hooks into any locally installed vision-language model (such as `moondream` or `qwen2.5-vl` through [Ollama](https://ollama.com)) to narrate your drawing onto a sticky note as you sketch.
+- **Dual-Model Collaboration**: When the classifier is confident (at least 60%), its top prediction is passed to the vision model prompt, transforming generic shape descriptions into context-aware descriptions.
+- **Strict Bit-Parity Verification**: Features an automatic parity check (`parity.json`) on page load that verifies the browser JavaScript rasterizer produces the exact same pixel values as the Python training code.
 
-## What is in here
+---
 
-- `data.py` downloads the training data and turns raw pen strokes into 28x28 images.
-- `train.py` builds and trains the model, checks how accurate it is, and exports it to ONNX so a browser can run it.
-- `index.html` is the whole demo: the drawing canvas, a hand written JavaScript port of the same rasterizer used in Python, the code that talks to the model, and the optional live captioner described below.
-- `model.onnx` is the trained model, a few hundred kilobytes.
-- `parity.json` holds a few drawings, run through the Python rasterizer ahead of time, that the page checks itself against on load. If the JavaScript version does not produce the exact same pixels, you will see it fail in the browser console.
+## Quick Start
 
-## Running the demo
+### Option A: One-Click Launch (Windows)
 
-You need Python installed, nothing else.
+Double-click start.bat (or launch.bat), or run in your terminal:
 
-```bash
+`cmd
+start.bat
+`
+
+This automated script will:
+- Check for Python and start the local static server on port 8000.
+- Detect if Ollama is installed and start it in the background with proper CORS settings.
+- Automatically open your default browser to http://localhost:8000/index.html.
+
+To cleanly close the app and all running dependencies, double-click stop.bat (or close.bat):
+
+`cmd
+stop.bat
+`
+
+*(Run stop.bat --all if you also want to force-close any independently started Ollama instance).*
+
+---
+
+### Option B: Manual Launch (Linux / macOS / Windows)
+
+`ash
+# 1. Clone the repository
 git clone https://github.com/ShubhamPandeycreate/Half-a-Doodle.git
 cd Half-a-Doodle
+
+# 2. Start a local static file server
 python -m http.server 8000
+# (If python is not recognized, try: python3 -m http.server 8000)
+
+# 3. Open http://localhost:8000/index.html in your browser
+`
+
+> **Why a local server is necessary:** Modern browsers restrict WebAssembly and model files like `model.onnx` from loading directly over `file://` URLs due to local security policies.
+
+---
+
+## Optional: Live Vision Narrator (Ollama)
+
+If you want a second opinion on what you are drawing, you can run a vision model locally using [Ollama](https://ollama.com).
+
+```
++-------------------------------------------------------------+
+|                       Browser Canvas                        |
++------------------------------+------------------------------+
+               | (28x28 normalized)            | (full canvas image)
+               v                               v
+       +---------------+               +---------------+
+       |   ONNX CNN    |               | Ollama (VLM)  |
+       | (Client-side) |               | (Local GPU)   |
+       +-------+-------+               +-------+-------+
+               | "bicycle: 98%"                |
+               +--------------> primes prompt -+
+                                       |
+                                       v
+                       "A doodle of a bicycle with
+                        two distinct circular wheels"
 ```
 
-If `python` is not found, try `python3` instead. The important part is running this command from inside the project folder, since it serves whatever directory you are standing in when you run it.
+### Setup in Two Steps:
 
-Then open `http://localhost:8000/index.html` in a browser. The page will load the model, run a quick self check comparing its rasterizer against the reference in `parity.json`, and then let you draw. Open the browser console if you want to see the self check result.
+1. **Install and start [Ollama](https://ollama.com)**
+2. **Download a vision model** (`moondream` is recommended because it is fast enough to update every couple of seconds):
+   ```bash
+   ollama pull moondream
+   ```
 
-## The live captioner (optional)
+3. **Turn on the "narrate" switch** on the yellow sticky note in the interface.
 
-The twenty guesses come from the ONNX model. The sticky note underneath them comes from
-somewhere else entirely: a vision model running locally through [Ollama](https://ollama.com),
-which looks at the canvas every couple of seconds and describes it in a sentence, typing itself
-out as it goes.
+### Supported Vision Models
 
-This part is genuinely optional. When the page loads it looks for Ollama on
-`http://localhost:11434`. If it is not there, the `narrate` switch disables itself, the note
-says why, and everything else behaves exactly as it did before. Start Ollama later and the
-switch re-enables itself within fifteen seconds without a reload. Turn the switch off and it
-stops sending anything at all, and hands the model's memory back to your GPU.
+The application checks `http://localhost:11434` automatically and detects installed vision models:
 
-To set it up:
+| Model | Download Size | Notes |
+| :--- | :--- | :--- |
+| **`moondream`** *(Default)* | ~1.7 GB | The fastest option (around one second per caption). Ideal for real-time sketching. |
+| **`granite3.2-vision`** | ~2.4 GB | Fast and responsive, with strong performance on diagrams and outlines. |
+| **`llava-phi3`** | ~2.9 GB | Generates descriptive, well-structured sentences. |
+| **`qwen2.5vl:3b`** | ~3.2 GB | Excellent at interpreting line art, though slightly slower. |
+| **`llava:7b`** | ~4.7 GB | High capability; requires around 5 GB of VRAM and takes a few seconds per update. |
+
+You can switch models in the dropdown menu or specify one directly in the URL: `http://localhost:8000/index.html?vlm=moondream`.
+
+> **Resolving CORS Issues:** Ollama allows connections from `localhost` by default. If your browser reports a cross-origin request block, set the origin variable when starting Ollama:
+> ```bash
+> # Linux or macOS
+> OLLAMA_ORIGINS="http://localhost:8000" ollama serve
+>
+> # Windows (PowerShell)
+> $env:OLLAMA_ORIGINS="http://localhost:8000"; ollama serve
+> ```
+
+---
+
+## Why This Approach Works
+
+Most sketch classifiers perform well on completed test sets but fall apart during interactive use, often guessing a single class until the very last stroke.
+
+This project addresses three common pitfalls in real-time drawing recognition:
+
+1. **Training on Partial Sketches (Prefix Sampling)**:  
+   Standard datasets only include completed drawings. During training, `data.py` randomly slices early prefixes of stroke sequences ($f \in [0.15, 1.0]$). This trains the model to recognize beginnings and midpoints of sketches instead of waiting for finished outlines.
+
+2. **Identical Dual-Language Rasterization**:  
+   The Python rasterizer used in training and the JavaScript rasterizer used in the browser must output the exact same 28x28 pixel grid byte for byte. Subtle differences in antialiasing, stroke width, or rounding create substantial performance loss.  
+   - Both implementations use uniform half-up rounding: `floor(v + 0.5)`
+   - Both use box downsampling: `(sum + 32) / 64`
+   - Both are verified on page load against the precomputed vectors in `parity.json`.
+
+3. **Dynamic Bounding Box Normalization**:  
+   During a live session, the final dimensions of the sketch are unknown. Training normalizes partial strokes according to their immediate bounding box at that point in time, matching how the browser scales drawing progress.
+
+---
+
+## Vocabulary
+
+The model recognizes 20 specific items from Google's [Quick, Draw!](https://quickdraw.withgoogle.com/data) dataset:
+
+| Category | Classes |
+| :--- | :--- |
+| **Vehicles and Travel** | `airplane`, `bicycle` |
+| **Food and Drink** | `apple`, `banana`, `cup` |
+| **Animals and Nature** | `butterfly`, `cat`, `fish`, `flower`, `tree`, `cloud`, `moon`, `star` |
+| **Household and Objects** | `book`, `chair`, `clock`, `eye`, `guitar`, `house`, `key` |
+
+Drawing anything outside these 20 classes will result in the model choosing the closest match among the categories it knows.
+
+---
+
+## Architecture and Evaluation
+
+- **Network Architecture**: Four convolutional layers with Batch Normalization, ReLU activations, and Max Pooling ($28 \times 28 \to 14 \times 14 \to 7 \times 7$).
+- **Classification Head**: Spatial features flattened through Dropout ($p=0.3$) into a 20-class linear output layer.
+- **Export Format**: Standard ONNX model (`model.onnx`, ~300 KB) expecting raw pixel values from 0 to 255.
+
+### Evaluation on Unseen Test Sketches
+
+| Drawing Completion | Top-1 Accuracy | Top-3 Accuracy |
+| :--- | :---: | :---: |
+| **Finished Sketches (100%)** | **~93%** | **~98%** |
+| **Early Sketches (~30% complete)** | **~54%** | **~80%** |
+
+---
+
+## Retraining the Model
+
+To download the training data and train the model yourself:
 
 ```bash
-ollama pull moondream
-```
+# 1. Install dependencies
+pip install torch numpy onnx onnxscript
 
-Then reload the page. The switch remembers whether you left it on or off.
-
-### Which model
-
-`moondream` is the default because it is small and quick enough to keep up with a two second
-cadence. Any vision model Ollama already has is picked up automatically, and if you have more
-than one, a dropdown appears so you can compare them live. `?vlm=some-model` on the URL forces
-a specific one.
-
-| Model | Download | Notes |
-| --- | --- | --- |
-| `moondream` | 1.7 GB | the default: fastest, roughly a second per caption |
-| `granite3.2-vision` | 2.4 GB | also quick, leans towards documents and charts |
-| `llava-phi3` | 2.9 GB | writes better sentences than moondream |
-| `qwen2.5vl:3b` | 3.2 GB | the best of these at reading line art, about twice as slow |
-| `llava:7b` | 4.7 GB | wants ~5 GB of VRAM, and updates every few seconds rather than every two |
-
-Worth knowing before you are disappointed: these models were all trained mostly on photographs,
-and a black line drawing on a white background is not really what they are used to. They are
-entertaining rather than reliable, which is rather the point of putting one next to a classifier
-that only knows twenty words.
-
-### The classifier helps the vision model
-
-The two halves of the page are not independent. Whenever the ONNX classifier is at least 60%
-confident, its top guess is folded into the prompt the vision model is given. That turns a
-description of shapes into a description of the thing:
-
-| | caption |
-| --- | --- |
-| vision model alone | Two circles, one larger than the other, both outlined in black. |
-| told `bicycle 98.6%` | A black and white doodle of a bicycle, with two identical circles representing the wheels. |
-
-It works because the classifier was trained on half finished drawings and the vision model was
-not, so on a partial doodle the twenty word model is often the better judge of the two. Below
-60% the guess is withheld, because that is the point where the classifier is really only
-guessing, and a vision model handed a shaky guess about a vague sketch will narrate it as fact.
-Given a wrong guess about a drawing it can read perfectly well, it simply ignores it: told a
-finished house was a banana, it still said house.
-
-If the browser console reports a CORS failure, set the `OLLAMA_ORIGINS` environment variable to
-the page's origin (`http://localhost:8000`) and restart Ollama. Ollama allows `localhost` on any
-port by default, so this is not usually necessary.
-
-## Retraining it yourself
-
-You will need PyTorch, plus `onnx` and `onnxscript` for the export step.
-
-```bash
+# 2. Download 5,000 samples per class from Quick, Draw! (~100,000 drawings total)
 python data.py
+
+# 3. Train the model and export to ONNX
 python train.py
 ```
 
-`data.py` downloads 5,000 drawings each for 20 categories (things like cat, house, star, tree) directly from Google's Quick, Draw! dataset, and saves them locally. `train.py` trains for a while, prints how accurate the model is both on finished drawings and on partial ones, and writes out `model.onnx` at the end.
+`train.py` tracks accuracy on both completed and partial drawings each epoch, exporting the final weights directly to `model.onnx`.
 
-## What it can draw
+---
 
-airplane, apple, banana, bicycle, book, butterfly, cat, chair, clock, cloud, cup, eye, fish, flower, guitar, house, key, moon, star, tree
+## Repository Structure
 
-That is the whole vocabulary. Draw anything else and it will confidently guess one of these twenty things anyway, because that is all it knows.
+```text
+├── start.bat        # One-click launcher (starts server + Ollama + opens browser)
+├── stop.bat         # One-click terminator (cleanly shuts down app and dependencies)
+├── launch.bat       # Shortcut alias for start.bat
+├── close.bat        # Shortcut alias for stop.bat
+├── index.html       # Web application containing canvas, JS rasterizer, and inference logic
+├── model.onnx       # Pre-trained ONNX model (~300 KB)
+├── parity.json      # Reference drawings used to verify JS rasterizer parity on page load
+├── data.py          # Dataset download script, stroke prefix sampler, and Python rasterizer
+├── train.py         # PyTorch training script and ONNX exporter
+├── assets/
+│   └── demo.gif     # Demo animation
+├── LICENSE          # MIT License
+└── README.md        # Documentation
+```
 
-## How good is it
-
-On a held out test set of drawings it has never seen: about 93% accurate on finished drawings, and about 54% accurate on a drawing that is only 30% complete (measuring just the single best guess). If you count it as correct whenever the right answer shows up anywhere in the top three guesses, those numbers rise to about 98% and 80%.
+---
 
 ## License
 
-MIT. See `LICENSE`.
+Distributed under the MIT License. See [`LICENSE`](LICENSE) for details.
